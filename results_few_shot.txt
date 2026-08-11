@@ -1,0 +1,19 @@
+PT→Tupi:
+BLEU: 0.46113256625467974
+chrF1 6.8466657580767425
+chrF3 9.187764242181432
+
+PT→Tupi:
+BLEU: 0.8307834193890166
+chrF1 13.966711955545255
+chrF3 13.870906413363663
+
+Para Modelos que minimizam a Loss:
+
+PT -> TUPI:
+TrainOutput(global_step=6135, training_loss=4.221503824670818, metrics={'train_runtime': 29894.8913, 'train_samples_per_second': 0.821, 'train_steps_per_second': 0.205, 'total_flos': 919800105467904.0, 'train_loss': 4.221503824670818, 'epoch': 5.0})
+0.030767802305670333
+
+TUPI -> PT:
+TrainOutput(global_step=6135, training_loss=3.3524515887247226, metrics={'train_runtime': 15548.8207, 'train_samples_per_second': 1.578, 'train_steps_per_second': 0.395, 'total_flos': 1153056619511808.0, 'train_loss': 3.3524515887247226, 'epoch': 5.0})
+0.07415717511694041
