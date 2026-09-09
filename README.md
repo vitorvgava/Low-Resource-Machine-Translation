@@ -29,6 +29,133 @@ facebook/nllb-200-distilled-600M
 
 A escolha foi motivada principalmente pelo suporte nativo ao código `grn_Latn`, pela menor demanda computacional em relação às versões maiores e pela compatibilidade com métodos de adaptação eficiente como **PEFT/LoRA**. O treinamento foi realizado integralmente em **CPU**, devido a problemas de compatibilidade entre a GPU disponível e o PyTorch.
 
+## Instalação
+
+### 1. Clonar o repositório
+
+```bash
+git clone <URL_DO_REPOSITORIO>
+cd <NOME_DO_REPOSITORIO>
+```
+
+### 2. Criar um ambiente virtual
+
+Recomenda-se utilizar Python 3.10 ou superior.
+
+Com `venv`:
+
+```bash
+python -m venv .venv
+```
+
+Ativação no Linux/macOS:
+
+```bash
+source .venv/bin/activate
+```
+
+Ativação no Windows:
+
+```powershell
+.venv\Scripts\activate
+```
+
+### 3. Instalar as dependências
+
+Instale as bibliotecas utilizadas pelo notebook:
+
+```bash
+pip install torch
+pip install transformers
+pip install datasets
+pip install peft
+pip install accelerate
+pip install sacrebleu
+pip install pandas
+pip install openpyxl
+pip install jupyter
+```
+
+Também é possível instalar todas de uma vez:
+
+```bash
+pip install torch transformers datasets peft accelerate sacrebleu pandas openpyxl jupyter
+```
+
+> **Observação:** o experimento foi executado em CPU. O treinamento do modelo `nllb-200-distilled-600M` é computacionalmente custoso, especialmente durante o fine-tuning.
+
+## Execução
+
+O pipeline completo está implementado no notebook:
+
+```text
+ep2.ipynb
+```
+
+Para iniciar o Jupyter Notebook:
+
+```bash
+jupyter notebook
+```
+
+ou:
+
+```bash
+jupyter lab
+```
+
+Abra então:
+
+```text
+ep2.ipynb
+```
+
+e execute as células em ordem.
+
+O notebook contém as etapas de:
+
+```text
+Pré-processamento
+      ↓
+Divisão train / validation / test
+      ↓
+Inferência zero-shot
+      ↓
+Fine-tuning com LoRA
+      ↓
+Seleção do melhor checkpoint
+      ↓
+Tradução do conjunto de teste
+      ↓
+BLEU / chrF1 / chrF3
+      ↓
+Seleção das melhores e piores traduções
+```
+
+O relatório descreve esse pipeline como: limpeza e normalização do corpus, divisão 70/15/15, inferência zero-shot, fine-tuning com LoRA em cada direção, geração das predições no teste e avaliação automática.
+
+### Execução somente da avaliação
+
+As traduções já geradas podem ser utilizadas para reproduzir a análise sem executar novamente todo o processo de inferência ou treinamento.
+
+Os principais arquivos de resultados são:
+
+```text
+results_zero_shot.txt
+results_few_shot.txt
+```
+
+As traduções processadas encontram-se em:
+
+```text
+pt2tupi_zeroShot_fixed.csv
+tupi2pt_zeroShot_fixed.csv
+pt2tupi_fewShot_fixed.csv
+tupi2pt_fewShot_fixed.csv
+```
+
+As listas das dez melhores e dez piores traduções estão disponíveis nos respectivos arquivos `best10` e `worst10`.
+
 ## Corpus
 
 O corpus paralelo contém as colunas:
@@ -57,8 +184,6 @@ Foram realizadas as seguintes etapas:
 * divisão em **70% treino, 15% validação e 15% teste**.
 
 ## Pipeline
-
-O fluxo experimental pode ser resumido como:
 
 ```text
 Corpus original
@@ -94,8 +219,6 @@ Train / Validation / Test
                 Top 10 / Bottom 10
 ```
 
-O pipeline completo inclui pré-processamento, inferência zero-shot, fine-tuning com LoRA, geração das traduções de teste, avaliação automática e seleção das dez melhores e dez piores sentenças por BLEU.
-
 ## Zero-shot
 
 No regime zero-shot, o `facebook/nllb-200-distilled-600M` é utilizado diretamente em seu estado pré-treinado.
@@ -122,29 +245,23 @@ target_modules = q_proj, v_proj
 O treinamento foi configurado com:
 
 ```text
-epochs       = 5
+epochs        = 5
 learning rate = 5e-5
-weight decay = 0.01
-batch size   = 4
+weight decay  = 0.01
+batch size    = 4
 early stopping patience = 2
 ```
 
-A seleção final foi feita manualmente utilizando o **maior BLEU na validação**. Isso ocorreu porque o treinamento originalmente utilizou validation loss como critério de seleção automática, enquanto o BLEU era considerado a métrica mais relevante para a tarefa.
+A seleção final foi feita utilizando o **maior BLEU na validação**.
 
 ### Melhor checkpoint
-
-Os resultados por época foram:
 
 | Direção   | Melhor época |     BLEU |
 | --------- | -----------: | -------: |
 | PT → Tupi |            2 | 0.470439 |
 | Tupi → PT |            2 | 0.988228 |
 
-Em ambos os casos, a época com maior BLEU não correspondeu à época de menor validation loss.
-
 ## Resultados
-
-### Comparação entre regimes
 
 | Direção   | Regime    |       BLEU |       chrF1 |       chrF3 |
 | --------- | --------- | ---------: | ----------: | ----------: |
@@ -153,34 +270,13 @@ Em ambos os casos, a época com maior BLEU não correspondeu à época de menor 
 | Tupi → PT | Zero-shot |     0.2404 |     12.3135 |     12.0392 |
 | Tupi → PT | Few-shot  | **0.8308** | **13.9667** | **13.8709** |
 
-O fine-tuning aumentou substancialmente o BLEU nas duas direções:
-
-* **PT → Tupi:** `0.1190 → 0.4611`
-* **Tupi → PT:** `0.2404 → 0.8308`
-
-Entretanto, os ganhos em chrF foram assimétricos: na direção PT → Tupi, chrF1 e chrF3 diminuíram, enquanto na direção Tupi → PT ambas as métricas aumentaram.
+O fine-tuning aumentou substancialmente o BLEU nas duas direções, embora os resultados das métricas baseadas em caracteres tenham apresentado comportamento assimétrico.
 
 ## Análise qualitativa
 
-O modelo zero-shot consegue produzir algumas traduções plausíveis, especialmente em expressões curtas e frequentes, mas também apresenta traduções semanticamente desvinculadas do texto original.
+O modelo zero-shot apresenta algumas traduções plausíveis, principalmente em expressões curtas e frequentes, mas também produz traduções semanticamente desvinculadas do texto original.
 
-Exemplos observados incluem:
-
-```text
-pé rupi → tape rupi
-nde rera → nde réra
-```
-
-Por outro lado, o fine-tuning aumenta a sensibilidade ao vocabulário e às estruturas presentes no corpus. Porém, também aparecem sinais claros de instabilidade e sobreajuste, principalmente na forma de **repetições patológicas de morfemas e fragmentos fonológicos**.
-
-Exemplo de comportamento degenerado:
-
-```text
-xe abangaíba
-→ xe îandéîaîaîaîaîaîaîaîaîaîaîaîaîaîaî...
-```
-
-Esses resultados indicam que o modelo adaptado pode apresentar melhor aderência ao corpus em situações favoráveis, mas também pode gerar sequências repetitivas, truncadas ou linguisticamente vazias quando encontra entradas pouco frequentes ou mais longas.
+No regime few-shot, o modelo apresenta maior sensibilidade ao vocabulário e às estruturas do corpus, mas também surgem comportamentos degenerados, principalmente **repetições patológicas de morfemas e fragmentos fonológicos**.
 
 ## Estrutura dos arquivos
 
@@ -216,41 +312,30 @@ Esses resultados indicam que o modelo adaptado pode apresentar melhor aderência
 └── nllb-ft-tupi2pt/
 ```
 
-A descrição acima corresponde ao catálogo de arquivos apresentado no relatório.
-
-## Principais conclusões
-
-Os experimentos mostram que:
-
-* o **zero-shot** apresenta capacidade limitada para o par Português–Tupi;
-* o **fine-tuning com LoRA** melhora significativamente o BLEU;
-* a melhoria é especialmente forte na direção **Tupi → Português**;
-* os efeitos sobre métricas baseadas em caracteres são diferentes entre as duas direções;
-* o fine-tuning também introduz comportamentos degenerados, incluindo repetições e saídas linguisticamente incoerentes;
-* a baixa quantidade de dados, o treinamento em CPU, a ausência de regularização mais forte e a variabilidade ortográfica do corpus são limitações importantes.
+Os arquivos acima correspondem aos artefatos descritos no relatório.
 
 ## Limitações
 
 Os resultados devem ser interpretados considerando:
 
-* o tamanho reduzido do corpus de treinamento;
-* a escassez de dados paralelos Português–Tupi;
+* o tamanho reduzido do corpus;
+* a escassez de dados paralelos;
 * a ausência de padronização completa de acentos;
-* a variabilidade morfológica e ortográfica do corpus;
-* as limitações computacionais que levaram ao treinamento em CPU;
+* a variabilidade morfológica e ortográfica;
+* as limitações computacionais do treinamento em CPU;
 * os comportamentos degenerados observados após o fine-tuning.
 
-## Tecnologias utilizadas
+## Tecnologias
 
-* **Python**
-* **Hugging Face Transformers**
-* **NLLB-200**
-* **PEFT / LoRA**
-* **Seq2SeqTrainer**
-* **sacreBLEU**
-* **Pandas**
-* **Jupyter Notebook**
+* Python
+* Hugging Face Transformers
+* NLLB-200
+* PEFT / LoRA
+* Seq2SeqTrainer
+* sacreBLEU
+* Pandas
+* Jupyter Notebook
 
 ## Referência
 
-Este projeto foi desenvolvido como o **EP2 — Tradução Automática de Baixo Recurso**, investigando tradução automática entre Português e Tupi Antigo utilizando modelos multilíngues pré-treinados e adaptação eficiente por LoRA.
+Projeto desenvolvido como **EP2 — Tradução Automática de Baixo Recurso**, investigando tradução automática entre Português e Tupi Antigo por meio de um modelo multilíngue pré-treinado e adaptação eficiente com LoRA.
